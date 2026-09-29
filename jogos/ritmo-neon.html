@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ritmo Neon</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #05010f;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    touch-action: none;
+    overscroll-behavior: none;
+    position: fixed;
+    inset: 0;
+  }
+
+  #game {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: #05010f;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5, 1, 15, 0.94);
+    z-index: 10;
+    padding: 24px;
+    text-align: center;
+    transition: opacity 0.35s ease;
+  }
+
+  .overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .title {
+    font-size: 46px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    background: linear-gradient(135deg, #ff2fb5, #7c4dff, #00e5ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: #00e5ff;
+    margin-bottom: 6px;
+    line-height: 1.05;
+    filter: drop-shadow(0 0 20px rgba(124, 77, 255, 0.5));
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: #7c4dff;
+    margin-bottom: 34px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .instructions {
+    font-size: 15px;
+    color: #d0c8e8;
+    line-height: 1.9;
+    margin-bottom: 36px;
+    max-width: 320px;
+  }
+
+  .instructions strong {
+    color: #00e5ff;
+  }
+
+  .legend {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 34px;
+  }
+
+  .legend-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: #8a7aa8;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .dot {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    box-shadow: 0 0 16px currentColor;
+  }
+
+  .dot.pink { background: #ff2fb5; color: #ff2fb5; }
+  .dot.purple { background: #7c4dff; color: #7c4dff; }
+  .dot.cyan { background: #00e5ff; color: #00e5ff; }
+
+  .btn {
+    padding: 18px 54px;
+    font-size: 17px;
+    font-weight: 800;
+    color: #05010f;
+    background: linear-gradient(135deg, #00e5ff, #7c4dff);
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    box-shadow: 0 8px 32px rgba(124, 77, 255, 0.5);
+    transition: transform 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+    text-transform: uppercase;
+  }
+
+  .btn:active {
+    transform: scale(0.94);
+    box-shadow: 0 4px 16px rgba(124, 77, 255, 0.7);
+  }
+
+  .gameover-title {
+    font-size: 38px;
+    font-weight: 900;
+    color: #ff2fb5;
+    text-shadow: 0 0 24px rgba(255, 47, 181, 0.6);
+    margin-bottom: 20px;
+    letter-spacing: 2px;
+  }
+
+  .final-score {
+    font-size: 72px;
+    font-weight: 900;
+    color: #00e5ff;
+    text-shadow: 0 0 30px rgba(0, 229, 255, 0.6);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .final-label {
+    font-size: 12px;
+    color: #8a7aa8;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 20px;
+  }
+
+  .stat-row {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 30px;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .stat-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: #ffffff;
+  }
+
+  .stat-value.perfect { color: #00e5ff; }
+  .stat-value.good { color: #7c4dff; }
+  .stat-value.miss { color: #ff2fb5; }
+
+  .stat-label {
+    font-size: 10px;
+    color: #8a7aa8;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  .new-record {
+    font-size: 13px;
+    color: #ffd166;
+    font-weight: 800;
+    margin-bottom: 20px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    animation: pulse 1s ease infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.06); }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div class="overlay" id="menu">
+  <div class="title">RITMO<br>NEON</div>
+  <div class="subtitle">tap on the beat</div>
+  <div class="instructions">
+    Quando um bloco chegar<br>na <strong>linha de acerto</strong>, toque no botão.<br>
+    Quanto mais preciso, mais pontos!
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="dot cyan"></div>PERFEITO</div>
+    <div class="legend-item"><div class="dot purple"></div>BOM</div>
+    <div class="legend-item"><div class="dot pink"></div>ERROU</div>
+  </div>
+  <button class="btn" id="btnStart">JOGAR</button>
+</div>
+
+<div class="overlay hidden" id="gameover">
+  <div class="gameover-title">ACABOU</div>
+  <div class="final-score" id="finalScore">0</div>
+  <div class="final-label">pontuação</div>
+  <div class="stat-row">
+    <div class="stat">
+      <div class="stat-value perfect" id="statPerfect">0</div>
+      <div class="stat-label">Perfeito</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value good" id="statGood">0</div>
+      <div class="stat-label">Bom</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value miss" id="statMiss">0</div>
+      <div class="stat-label">Errou</div>
+    </div>
+  </div>
+  <div class="new-record" id="newRecord" style="display:none;">★ NOVO RECORDE ★</div>
+  <button class="btn" id="btnRestart">TENTAR DE NOVO</button>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  let W = window.innerWidth;
+  let H = window.innerHeight;
+  let DPR = 1;
+
+  // ===== Estado =====
+  const STATE = { MENU: 0, PLAYING: 1, GAMEOVER: 2 };
+  let state = STATE.MENU;
+
+  // ===== Layout =====
+  let lanes = [];
+  const laneCount = 3;
+  let hitLineY = 0;
+  let noteH = 26;
+
+  const COLORS = [
+    { main: '#00e5ff', rgba: (a) => 'rgba(0, 229, 255, ' + a + ')' },
+    { main: '#7c4dff', rgba: (a) => 'rgba(124, 77, 255, ' + a + ')' },
+    { main: '#ff2fb5', rgba: (a) => 'rgba(255, 47, 181, ' + a + ')' }
+  ];
+
+  // ===== Variáveis de jogo =====
+  let notes = [];
+  let particles = [];
+  let ripples = [];
+  let bgParticles = [];
+  let score = 0;
+  let combo = 0;
+  let maxCombo = 0;
+  let perfectCount = 0;
+  let goodCount = 0;
+  let missCount = 0;
+  let best = 0;
+
+  try {
+    best = parseInt(localStorage.getItem('ritmoneon_best') || '0', 10) || 0;
+  } catch (e) { best = 0; }
+
+  let elapsed = 0;
+  let lastTime = 0;
+  let beatTimer = 0;
+  let beatInterval = 800;
+  let speed = 400;
+  let shakeTime = 0;
+  let shakeIntensity = 0;
+  let bgPulse = 0;
+  let hueShift = 0;
+
+  // ===== Resize =====
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    layout();
+  }
+
+  function layout() {
+    const laneW = W / laneCount;
+    hitLineY = H - 140;
+
+    lanes = [];
+    for (let i = 0; i < laneCount; i++) {
+      lanes.push({
+        x: i * laneW,
+        w: laneW,
+        cx: i * laneW + laneW / 2,
+        color: COLORS[i],
+        flash: 0
+      });
+    }
+  }
+
+  // ===== Reset =====
+  function resetGame() {
+    notes = [];
+    particles = [];
+    ripples = [];
+    score = 0;
+    combo = 0;
+    maxCombo = 0;
+    perfectCount = 0;
+    goodCount = 0;
+    missCount = 0;
+    elapsed = 0;
+    beatTimer = -600;
+    beatInterval = 800;
+    speed = 400;
+    shakeTime = 0;
+    bgPulse = 0;
+    hueShift = 0;
+
+    for (const l of lanes) l.flash = 0;
+
+    bgParticles = [];
+    for (let i = 0; i < 40; i++) {
+      bgParticles.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 1.6 + 0.3,
+        vy: 10 + Math.random() * 30,
+        twinkle: Math.random() * Math.PI * 2
+      });
+    }
+  }
+
+  function startGame() {
+    resetGame();
+    state = STATE.PLAYING;
+    document.getElementById('menu').classList.add('hidden');
+    document.getElementById('gameover').classList.add('hidden');
+    document.getElementById('newRecord').style.display = 'none';
+  }
+
+  function gameOver() {
+    state = STATE.GAMEOVER;
+    shakeTime = 0.4;
+    shakeIntensity = 14;
+
+    let isRecord = false;
+    if (score > best) {
+      best = score;
+      try { localStorage.setItem('ritmoneon_best', best); } catch (e) {}
+      isRecord = true;
+    }
+
+    document.getElementById('finalScore').textContent = score;
+    document.getElementById('statPerfect').textContent = perfectCount;
+    document.getElementById('statGood').textContent = goodCount;
+    document.getElementById('statMiss').textContent = missCount;
+    if (isRecord) document.getElementById('newRecord').style.display = 'block';
+    document.getElementById('gameover').classList.remove('hidden');
+  }
+
+  // ===== Spawn =====
+  function spawnNote() {
+    const laneIdx = Math.floor(Math.random() * laneCount);
+    notes.push({
+      lane: laneIdx,
+      y: -noteH - 10,
+      hit: false,
+      judged: false,
+      judgeTime: 0
+    });
+  }
+
+  // ===== Input =====
+  function handleTap(clientX) {
+    if (state !== STATE.PLAYING) return;
+    const laneW = W / laneCount;
+    const laneIdx = Math.floor(clientX / laneW);
+    if (laneIdx < 0 || laneIdx >= laneCount) return;
+    tapLane(laneIdx);
+  }
+
+  function tapLane(laneIdx) {
+    const lane = lanes[laneIdx];
+    if (!lane) return;
+    lane.flash = 1;
+
+    let bestNote = null;
+    let bestDist = Infinity;
+
+    for (const n of notes) {
+      if (n.lane !== laneIdx || n.hit || n.judged) continue;
+      const noteCenter = n.y + noteH / 2;
+      const dist = Math.abs(noteCenter - hitLineY);
+      if (dist < bestDist && dist < 130) {
+        bestDist = dist;
+        bestNote = n;
+      }
+    }
+
+    if (!bestNote) {
+      combo = 0;
+      missCount += 1;
+      shakeTime = 0.2;
+      shakeIntensity = 6;
+      return;
+    }
+
+    if (bestDist < 22) {
+      perfectCount += 1;
+      score += 100 + combo * 5;
+      combo += 1;
+      ripples.push({ x: lane.cx, y: hitLineY, r: 0, maxR: 90, color: lane.color.main, life: 1 });
+      for (let i = 0; i < 14; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const s = 80 + Math.random() * 260;
+        particles.push({
+          x: lane.cx, y: hitLineY,
+          vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+          life: 1, decay: 2, size: 2 + Math.random() * 4,
+          color: lane.color.main
+        });
+      }
+      bgPulse = 1;
+    } else if (bestDist < 60) {
+      goodCount += 1;
+      score += 50 + combo * 3;
+      combo += 1;
+      ripples.push({ x: lane.cx, y: hitLineY, r: 0, maxR: 60, color: lane.color.main, life: 0.7 });
+      for (let i = 0; i < 7; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const s = 50 + Math.random() * 140;
+        particles.push({
+          x: lane.cx, y: hitLineY,
+          vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+          life: 0.7, decay: 2.4, size: 2 + Math.random() * 3,
+          color: lane.color.main
+        });
+      }
+      bgPulse = 0.6;
+    } else {
+      missCount += 1;
+      combo = 0;
+      shakeTime = 0.15;
+      shakeIntensity = 5;
+      return;
+    }
+
+    bestNote.hit = true;
+    bestNote.judged = true;
+    bestNote.judgeTime = elapsed;
+    if (combo > maxCombo) maxCombo = combo;
+  }
+
+  // Eventos
+  canvas.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      handleTap(e.changedTouches[i].clientX);
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('mousedown', function(e) {
+    handleTap(e.clientX);
+  });
+
+  window.addEventListener('keydown', function(e) {
+    if (state !== STATE.PLAYING) return;
+    const k = e.key.toLowerCase();
+    if (k === 'a') tapLane(0);
+    if (k === 's') tapLane(1);
+    if (k === 'd') tapLane(2);
+  });
+
+  // ===== Update =====
+  function update(dt) {
+    // Partículas
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= 0.96;
+      p.vy *= 0.96;
+      p.vy += 200 * dt;
+      p.life -= p.decay * dt;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    for (let i = ripples.length - 1; i >= 0; i--) {
+      const r = ripples[i];
+      r.r += (r.maxR - r.r) * Math.min(1, dt * 6);
+      r.life -= dt * 1.8;
+      if (r.life <= 0) ripples.splice(i, 1);
+    }
+
+    for (const l of lanes) {
+      if (l.flash > 0) l.flash = Math.max(0, l.flash - dt * 3.5);
+    }
+
+    if (shakeTime > 0) shakeTime -= dt;
+    if (bgPulse > 0) bgPulse = Math.max(0, bgPulse - dt * 2.5);
+    hueShift += dt * 20;
+
+    for (const p of bgParticles) {
+      p.y += p.vy * dt;
+      p.twinkle += dt * 4;
+      if (p.y > H + 5) {
+        p.y = -5;
+        p.x = Math.random() * W;
+      }
+    }
+
+    if (state !== STATE.PLAYING) return;
+
+    elapsed += dt;
+    beatInterval = Math.max(280, 800 - elapsed * 12);
+    speed = Math.min(900, 400 + elapsed * 10);
+
+    beatTimer += dt * 1000;
+    if (beatTimer >= beatInterval) {
+      beatTimer = 0;
+      spawnNote();
+      if (elapsed > 15 && Math.random() < 0.15) {
+        const self = this;
+        setTimeout(function() {
+          if (state === STATE.PLAYING) spawnNote();
+        }, 80);
+      }
+    }
+
+    for (let i = notes.length - 1; i >= 0; i--) {
+      const n = notes[i];
+      n.y += speed * dt;
+
+      if (!n.hit && !n.judged && n.y > hitLineY + 60) {
+        n.judged = true;
+        missCount += 1;
+        combo = 0;
+        shakeTime = 0.15;
+        shakeIntensity = 5;
+      }
+
+      if (n.y > H + 40) {
+        notes.splice(i, 1);
+      }
+    }
+
+    if (missCount >= 8 && missCount > perfectCount + goodCount) {
+      gameOver();
+    }
+  }
+
+  // ===== Render =====
+  function drawBackground() {
+    // Fundo base (sem gradiente caro, mais leve)
+    ctx.fillStyle = '#05010f';
+    ctx.fillRect(0, 0, W, H);
+
+    // Pulso radial
+    if (bgPulse > 0) {
+      const color = COLORS[Math.floor((elapsed * 2) % 3)].main;
+      const grd = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7);
+      grd.addColorStop(0, color);
+      grd.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = bgPulse * 0.3;
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
+
+    // Grade
+    ctx.strokeStyle = 'rgba(124, 77, 255, 0.12)';
+    ctx.lineWidth = 1;
+    const horizon = H * 0.35;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const t = i / 8;
+      const y = horizon + (H - horizon) * (t * t);
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+    }
+    ctx.stroke();
+
+    // Estrelas
+    ctx.fillStyle = '#ffffff';
+    for (const p of bgParticles) {
+      const tw = 0.5 + 0.5 * Math.sin(p.twinkle);
+      ctx.globalAlpha = 0.15 + tw * 0.55;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawLanes() {
+    for (let i = 0; i < lanes.length; i++) {
+      const l = lanes[i];
+
+      // Fundo da lane
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(0.5, l.color.rgba(0.04));
+      g.addColorStop(1, l.color.rgba(0.14));
+      ctx.fillStyle = g;
+      ctx.fillRect(l.x, 0, l.w, H);
+
+      // Flash
+      if (l.flash > 0) {
+        ctx.fillStyle = l.color.rgba(l.flash * 0.3);
+        ctx.fillRect(l.x, 0, l.w, H);
+      }
+
+      // Borda
+      if (i > 0) {
+        ctx.strokeStyle = 'rgba(124, 77, 255, 0.15)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(l.x, 0);
+        ctx.lineTo(l.x, H);
+        ctx.stroke();
+      }
+    }
+  }
+
+  function drawHitLine() {
+    // Glow
+    const g = ctx.createLinearGradient(0, hitLineY - 30, 0, hitLineY + 30);
+    g.addColorStop(0, 'rgba(0, 229, 255, 0)');
+    g.addColorStop(0.5, 'rgba(0, 229, 255, 0.3)');
+    g.addColorStop(1, 'rgba(0, 229, 255, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, hitLineY - 30, W, 60);
+
+    // Linha
+    ctx.strokeStyle = '#00e5ff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, hitLineY);
+    ctx.lineTo(W, hitLineY);
+    ctx.stroke();
+
+    // Marcadores
+    for (let i = 0; i < laneCount; i++) {
+      const l = lanes[i];
+      ctx.fillStyle = l.color.main;
+      ctx.beginPath();
+      ctx.arc(l.cx, hitLineY, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawNotes() {
+    for (const n of notes) {
+      const lane = lanes[n.lane];
+      if (!lane) continue;
+      const x = lane.x + 6;
+      const w = lane.w - 12;
+      const y = n.y;
+
+      if (n.hit) {
+        const t = (elapsed - n.judgeTime) / 0.3;
+        if (t < 1 && t >= 0) {
+          ctx.globalAlpha = 1 - t;
+          const scale = 1 + t * 0.5;
+          const cx = x + w / 2;
+          const cy = y + noteH / 2;
+          ctx.fillStyle = lane.color.main;
+          roundRect(cx - (w * scale) / 2, cy - (noteH * scale) / 2, w * scale, noteH * scale, 8);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        continue;
+      }
+
+      const grad = ctx.createLinearGradient(x, y, x, y + noteH);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.3, lane.color.main);
+      grad.addColorStop(1, lane.color.main);
+
+      ctx.fillStyle = grad;
+      roundRect(x, y, w, noteH, 8);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+      roundRect(x + 3, y + 3, w - 6, 6, 3);
+      ctx.fill();
+    }
+  }
+
+  function drawRipples() {
+    for (const r of ripples) {
+      ctx.strokeStyle = r.color;
+      ctx.lineWidth = Math.max(0.5, 3 * r.life);
+      ctx.globalAlpha = Math.max(0, r.life);
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawParticles() {
+    for (const p of particles) {
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(0.1, p.size * p.life), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawHUD() {
+    if (state === STATE.MENU) return;
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    ctx.font = '900 40px -apple-system, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(score, W / 2, 20);
+
+    if (combo > 1) {
+      ctx.font = '800 16px -apple-system, sans-serif';
+      ctx.fillStyle = '#ffd166';
+      ctx.fillText('COMBO ×' + combo, W / 2, 66);
+    }
+
+    ctx.textAlign = 'left';
+    ctx.font = '700 11px -apple-system, sans-serif';
+    ctx.fillStyle = 'rgba(124, 77, 255, 0.9)';
+    ctx.fillText('MELHOR ' + best, 14, 16);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(0, 229, 255, 0.9)';
+    ctx.fillText('PERFEITO ' + perfectCount, W - 14, 16);
+    ctx.fillStyle = 'rgba(255, 47, 181, 0.9)';
+    ctx.fillText('ERROS ' + missCount, W - 14, 32);
+  }
+
+  function roundRect(x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
+  function render() {
+    ctx.save();
+
+    if (shakeTime > 0) {
+      const s = shakeIntensity * (shakeTime / 0.4);
+      ctx.translate((Math.random() - 0.5) * s, (Math.random() - 0.5) * s);
+    }
+
+    drawBackground();
+    drawLanes();
+
+    if (state === STATE.PLAYING) {
+      const progress = Math.min(1, elapsed / 60);
+      const barW = W * progress;
+      const grd = ctx.createLinearGradient(0, 0, W, 0);
+      grd.addColorStop(0, '#00e5ff');
+      grd.addColorStop(0.5, '#7c4dff');
+      grd.addColorStop(1, '#ff2fb5');
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, barW, 3);
+    }
+
+    drawHitLine();
+    drawNotes();
+    drawRipples();
+    drawParticles();
+    drawHUD();
+
+    ctx.restore();
+  }
+
+  // ===== Loop =====
+  let rafId = 0;
+  function loop(now) {
+    try {
+      if (!lastTime) lastTime = now;
+      let dt = (now - lastTime) / 1000;
+      lastTime = now;
+      if (dt > 0.05) dt = 0.05;
+      if (dt < 0) dt = 0;
+
+      update(dt);
+      render();
+    } catch (err) {
+      // Loga uma vez sem travar o loop
+      if (!loop._errored) {
+        loop._errored = true;
+        console.error('Erro no loop:', err);
+      }
+    }
+    rafId = requestAnimationFrame(loop);
+  }
+
+  // ===== Eventos UI =====
+  document.getElementById('btnStart').addEventListener('click', function(e) {
+    e.stopPropagation();
+    startGame();
+  });
+  document.getElementById('btnRestart').addEventListener('click', function(e) {
+    e.stopPropagation();
+    startGame();
+  });
+
+  document.addEventListener('touchmove', function(e) {
+    if (e.target === canvas) e.preventDefault();
+  }, { passive: false });
+  document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+
+  // ===== Init =====
+  resize();
+  resetGame();
+  rafId = requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
