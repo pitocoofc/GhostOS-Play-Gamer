@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jogo da Velha vs IA Treinada (Q-Learning)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #1a1a2e;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    h1 {
+      margin-bottom: 5px;
+    }
+
+    p.subtitle {
+      color: #8f94fb;
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+
+    #status {
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+      font-weight: bold;
+      height: 30px;
+      color: #e94560;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 10px;
+      background-color: #16213e;
+      padding: 10px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .cell {
+      background-color: #0f3460;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    .cell:hover {
+      background-color: #1f4068;
+    }
+
+    .cell:active {
+      transform: scale(0.95);
+    }
+
+    .cell.x {
+      color: #4eacc5;
+    }
+
+    .cell.o {
+      color: #e94560;
+    }
+
+    button {
+      margin-top: 25px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      font-weight: bold;
+      background-color: #e94560;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: #ff6b81;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Jogo da Velha</h1>
+  <p class="subtitle">Você (X) vs IA Treinada (O)</p>
+
+  <div id="status">Carregando cérebro da IA...</div>
+
+  <div class="board" id="board">
+    <div class="cell" data-index="0"></div>
+    <div class="cell" data-index="1"></div>
+    <div class="cell" data-index="2"></div>
+    <div class="cell" data-index="3"></div>
+    <div class="cell" data-index="4"></div>
+    <div class="cell" data-index="5"></div>
+    <div class="cell" data-index="6"></div>
+    <div class="cell" data-index="7"></div>
+    <div class="cell" data-index="8"></div>
+  </div>
+
+  <button onclick="resetGame()">Reiniciar Jogo</button>
+
+  <script>
+    let board = Array(9).fill(null);
+    let qTable = null;
+    let gameOver = false;
+    const statusDiv = document.getElementById('status');
+    const cells = document.querySelectorAll('.cell');
+
+    // Carrega o JSON com os pesos treinados
+    fetch('./pesos.json')
+      .then(response => {
+        if (!response.ok) throw new Error('Arquivo pesos_ia.json não encontrado');
+        return response.json();
+      })
+      .then(data => {
+        qTable = data;
+        statusDiv.innerText = "Sua vez! (Clique em uma casa)";
+      })
+      .catch(err => {
+        console.error(err);
+        statusDiv.innerText = "Erro ao carregar pesos_ia.json! Execute um servidor local.";
+      });
+
+    // Mapeia os cliques nas casas
+    cells.forEach(cell => {
+      cell.addEventListener('click', () => {
+        const index = parseInt(cell.getAttribute('data-index'));
+        if (!board[index] && !gameOver && qTable) {
+          makeMove(index, 'X');
+          if (!checkGameState()) {
+            setTimeout(aiMove, 300); // Dá um delay para parecer que a IA está pensando
+          }
+        }
+      });
+    });
+
+    function makeMove(index, player) {
+      board[index] = player;
+      const cell = cells[index];
+      cell.innerText = player;
+      cell.classList.add(player.toLowerCase());
+    }
+
+function aiMove() {
+  // Transforma o tabuleiro exatamente como está ("X", "O" ou " ")
+  const stateKey = board.map(cell => cell || ' ').join('');
+
+  const availMoves = board.map((v, i) => v === null ? i : null).filter(v => v !== null);
+  if (availMoves.length === 0) return;
+
+  let bestMove = availMoves[0];
+  const weights = qTable[stateKey];
+
+  if (weights) {
+    let maxWeight = -Infinity;
+    for (let move of availMoves) {
+      if (weights[move] > maxWeight) {
+        maxWeight = weights[move];
+        bestMove = move;
+      }
+    }
+  } else {
+    // Se não encontrar o estado, escolhe aleatório
+    bestMove = availMoves[Math.floor(Math.random() * availMoves.length)];
+  }
+
+  makeMove(bestMove, 'O');
+  checkGameState();
+}
+
+    function checkWinner(b) {
+      const lines = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
+      for (let [p1, p2, p3] of lines) {
+        if (b[p1] && b[p1] === b[p2] && b[p1] === b[p3]) return b[p1];
+      }
+      if (b.every(cell => cell !== null)) return 'TIE';
+      return null;
+    }
+
+    function checkGameState() {
+      const result = checkWinner(board);
+      if (result) {
+        gameOver = true;
+        if (result === 'X') {
+          statusDiv.innerText = "Você venceu! 🎉";
+        } else if (result === 'O') {
+          statusDiv.innerText = "A IA venceu! 🤖";
+        } else {
+          statusDiv.innerText = "Empate! 🤝";
+        }
+        return true;
+      }
+      return false;
+    }
+
+    function resetGame() {
+      board = Array(9).fill(null);
+      gameOver = false;
+      cells.forEach(cell => {
+        cell.innerText = '';
+        cell.classList.remove('x', 'o');
+      });
+      if (qTable) {
+        statusDiv.innerText = "Sua vez! (Clique em uma casa)";
+      }
+    }
+  </script>
+</body>
+</html>
+
